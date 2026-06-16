@@ -46,6 +46,47 @@ def get_property_types(access_token: str) -> list[dict]:
     return MFBClient(access_token).get_property_types()
 
 
+@mcp.tool()
+def add_flight(access_token: str, flight: dict) -> int:
+    """
+    Add a completed flight to the MFB logbook.
+    flight dict keys:
+      aircraft_id (int), date (str YYYY-MM-DD),
+      total_time (float), sic (float), pic (float),
+      route (str e.g. "FAJS-FZAA"), landings (int), full_stop_landings (int),
+      night_landings (int, optional), comment (str, optional),
+      flight_start (str ISO UTC, optional), flight_end (str ISO UTC, optional),
+      is_public (bool, optional, default False),
+      custom_properties (list of {"prop_id": int, "value": str|int|float|bool}).
+    Returns MFB-assigned FlightID (int).
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).add_flight(flight)
+
+
+@mcp.tool()
+def get_flights(
+    access_token: str, start_date: str, end_date: str, max_count: int = 50
+) -> list[dict]:
+    """
+    Query flights in MFB logbook by date range (YYYY-MM-DD).
+    Returns list of flight records.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).get_flights(start_date, end_date, max_count)
+
+
+@mcp.tool()
+def check_flight(access_token: str, flight: dict) -> dict:
+    """
+    Validate a flight entry before committing. Same flight dict shape as add_flight.
+    Returns {"valid": bool, "messages": list[str]}.
+    Empty messages list means the flight passed validation.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).check_flight(flight)
+
+
 def main():
     mcp.run()
 
