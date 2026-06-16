@@ -87,6 +87,58 @@ def check_flight(access_token: str, flight: dict) -> dict:
     return MFBClient(access_token).check_flight(flight)
 
 
+@mcp.tool()
+def create_pending_flight(access_token: str, flight: dict) -> str:
+    """
+    Schedule a pending (future) flight. Same flight dict shape as add_flight.
+    Returns the MFB-assigned PendingID (string UUID).
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).create_pending_flight(flight)
+
+
+@mcp.tool()
+def get_pending_flights(access_token: str) -> list[dict]:
+    """
+    List all pending flights for the user.
+    Returns list of pending flight dicts (full LogbookEntry fields + PendingID).
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).get_pending_flights()
+
+
+@mcp.tool()
+def update_pending_flight(access_token: str, pending_id: str, flight: dict) -> None:
+    """
+    Update an existing pending flight (e.g. add actuals before committing).
+    pending_id: PendingID returned by create_pending_flight.
+    flight: same dict shape as add_flight.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    MFBClient(access_token).update_pending_flight(pending_id, flight)
+
+
+@mcp.tool()
+def commit_pending_flight(access_token: str, pending_id: str) -> int:
+    """
+    Promote a pending flight to a full logbook entry.
+    Returns -1 (CommitPendingFlight returns remaining pending list, not the new FlightID).
+    Use get_flights() with today's date to retrieve the committed entry if the FlightID is needed.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).commit_pending_flight(pending_id)
+
+
+@mcp.tool()
+def delete_pending_flight(access_token: str, pending_id: str) -> None:
+    """
+    Remove a pending flight.
+    pending_id: PendingID returned by create_pending_flight.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    MFBClient(access_token).delete_pending_flight(pending_id)
+
+
 def main():
     mcp.run()
 

@@ -29,6 +29,10 @@ class MFBClient:
         except Exception as e:
             raise RuntimeError(f"MFB SOAP error in {method}: {e}") from e
 
+    # ------------------------------------------------------------------
+    # Aircraft
+    # ------------------------------------------------------------------
+
     def get_aircraft(self) -> list:
         """
         Call AircraftForUser. Returns list of dicts with:
@@ -84,6 +88,10 @@ class MFBClient:
         except Exception as e:
             raise RuntimeError(f"AddAircraftForUser: failed to parse response: {e}") from e
 
+    # ------------------------------------------------------------------
+    # Property types
+    # ------------------------------------------------------------------
+
     def get_property_types(self) -> list:
         """
         Call AvailablePropertyTypesForUser.
@@ -122,20 +130,33 @@ class MFBClient:
             return {"DateValue": value}
         return {"TextValue": str(value)}
 
-    def _build_logbook_entry(self, flight: dict):
-        """Construct a zeep LogbookEntry object from a flight dict."""
+    @staticmethod
+    def _json_safe(obj):
+        """Recursively coerce Decimal/datetime from serialize_object output to JSON-safe types."""
+        if isinstance(obj, dict):
+            return {k: MFBClient._json_safe(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [MFBClient._json_safe(v) for v in obj]
+        if isinstance(obj, Decimal):
+            return float(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return obj
+
+    def _build_cfp_array(self, flight: dict):
+        """Build a zeep ArrayOfCustomFlightProperty from flight dict's custom_properties."""
         CfpType = self._zeep.get_type("ns0:CustomFlightProperty")
         CfpArrType = self._zeep.get_type("ns0:ArrayOfCustomFlightProperty")
-        LeType = self._zeep.get_type("ns0:LogbookEntry")
-
         raw_props = flight.get("custom_properties") or []
         cfp_objects = [
             CfpType(PropTypeID=p["prop_id"], **self._cfp_value_fields(p["value"]))
             for p in raw_props
         ]
-        custom_props = CfpArrType(CustomFlightProperty=cfp_objects) if cfp_objects else None
+        return CfpArrType(CustomFlightProperty=cfp_objects) if cfp_objects else None
 
-        return LeType(
+    def _flight_core_kwargs(self, flight: dict) -> dict:
+        """Return the shared LogbookEntry / PendingFlight field kwargs from a flight dict."""
+        return dict(
             FlightID=flight.get("flight_id", -1),
             AircraftID=flight["aircraft_id"],
             Date=datetime.strptime(flight["date"], "%Y-%m-%d"),
@@ -158,11 +179,21 @@ class MFBClient:
                 if flight.get("flight_end")
                 else None
             ),
-            CustomProperties=custom_props,
+            CustomProperties=self._build_cfp_array(flight),
         )
 
+    def _build_logbook_entry(self, flight: dict):
+        """Construct a zeep LogbookEntry object from a flight dict."""
+        LeType = self._zeep.get_type("ns0:LogbookEntry")
+        return LeType(**self._flight_core_kwargs(flight))
+
+    def _build_pending_flight(self, pending_id: str, flight: dict):
+        """Construct a zeep PendingFlight object from a pending ID and flight dict."""
+        PfType = self._zeep.get_type("ns0:PendingFlight")
+        return PfType(PendingID=pending_id, **self._flight_core_kwargs(flight))
+
     # ------------------------------------------------------------------
-    # Flight methods
+    # Completed flight methods
     # ------------------------------------------------------------------
 
     def add_flight(self, flight: dict) -> int:
@@ -206,7 +237,7 @@ class MFBClient:
         )
         try:
             flights = result if isinstance(result, list) else list(result or [])
-            return [serialize_object(f) for f in flights]
+            return [self._json_safe(serialize_object(f)) for f in flights]
         except Exception as e:
             raise RuntimeError(f"FlightsWithQueryAndOffset: failed to parse response: {e}") from e
 
@@ -229,3 +260,67 @@ class MFBClient:
             return {"valid": len(messages) == 0, "messages": messages}
         except Exception as e:
             raise RuntimeError(f"CheckFlight: failed to parse response: {e}") from e
+
+    # ------------------------------------------------------------------
+    # Pending flight methods
+    # ------------------------------------------------------------------
+
+    def create_pending_flight(self, flight: dict) -> str:
+        """
+        Schedule a pending flight via CreatePendingFlight.
+        Same flight dict shape as add_flight.
+        Returns the MFB-assigned PendingID (string UUID).
+        """
+        try:
+            entry = self._build_logbook_entry(flight)
+        except Exception as e:
+            raise RuntimeError(f"create_pending_flight: failed to build LogbookEntry: {e}") from e
+
+        result = self._call("CreatePendingFlight", le=entry)
+        try:
+            return str(result.PendingID)
+        except Exception as e:
+            raise RuntimeError(f"CreatePendingFlight: unexpected result shape: {e}") from e
+
+    def get_pending_flights(self) -> list:
+        """
+        List all pending flights via PendingFlightsForUser.
+        Returns list of pending flight dicts (full LogbookEntry fields + PendingID).
+        """
+        result = self._call("PendingFlightsForUser")
+        try:
+            pending = result if isinstance(result, list) else list(result or [])
+            return [self._json_safe(serialize_object(p)) for p in pending]
+        except Exception as e:
+            raise RuntimeError(f"PendingFlightsForUser: failed to parse response: {e}") from e
+
+    def update_pending_flight(self, pending_id: str, flight: dict) -> None:
+        """
+        Update an existing pending flight via UpdatePendingFlight (e.g. add actuals).
+        pending_id: the PendingID returned by create_pending_flight.
+        flight: same dict shape as add_flight.
+        """
+        try:
+            pf = self._build_pending_flight(pending_id, flight)
+        except Exception as e:
+            raise RuntimeError(f"update_pending_flight: failed to build PendingFlight: {e}") from e
+
+        self._call("UpdatePendingFlight", pf=pf)
+
+    def commit_pending_flight(self, pending_id: str) -> int:
+        """
+        Promote a pending flight to a full logbook entry via CommitPendingFlight.
+        pending_id: the PendingID to commit.
+
+        Note: CommitPendingFlight returns the *remaining* ArrayOfPendingFlight, not
+        the new FlightID. Returns -1 as a sentinel; use get_flights() with today's
+        date to retrieve the committed entry's FlightID if needed.
+        """
+        PfType = self._zeep.get_type("ns0:PendingFlight")
+        pf = PfType(PendingID=pending_id)
+        self._call("CommitPendingFlight", pf=pf)
+        return -1
+
+    def delete_pending_flight(self, pending_id: str) -> None:
+        """Remove a pending flight via DeletePendingFlight."""
+        self._call("DeletePendingFlight", idpending=pending_id)
