@@ -79,3 +79,24 @@ class MFBClient:
             raise
         except Exception as e:
             raise RuntimeError(f"AddAircraftForUser: failed to parse response: {e}") from e
+
+    def get_property_types(self) -> list:
+        """
+        Call AvailablePropertyTypesForUser.
+        Returns list of {"id": int, "name": str, "type": str} for all custom
+        property types (Flight Number, Name of PIC, etc.).
+        Use the id values in add_flight's custom_properties parameter.
+        """
+        result = self._call("AvailablePropertyTypesForUser")
+        try:
+            props = result if isinstance(result, list) else list(result or [])
+            return [
+                {
+                    "id": int(p.PropTypeID),
+                    "name": str(p.Title),
+                    "type": str(p.Type) if p.Type is not None else "",
+                }
+                for p in props
+            ]
+        except Exception as e:
+            raise RuntimeError(f"AvailablePropertyTypesForUser: failed to parse response: {e}") from e

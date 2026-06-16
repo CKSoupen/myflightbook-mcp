@@ -35,6 +35,17 @@ def add_aircraft(access_token: str, tail_number: str, model_id: int, instance_ty
     return MFBClient(access_token).add_aircraft(tail_number, model_id, instance_type)
 
 
+@mcp.tool()
+def get_property_types(access_token: str) -> list[dict]:
+    """
+    List all custom property types available for this MFB user.
+    Returns: [{"id": int, "name": str, "type": str}, ...]
+    Use the id values in add_flight's custom_properties parameter.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).get_property_types()
+
+
 def main():
     mcp.run()
 
