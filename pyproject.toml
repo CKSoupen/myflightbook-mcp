@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "myflightbook-mcp"
+version = "0.1.0"
+description = "MCP server for the MyFlightbook SOAP API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["myflightbook", "mcp", "aviation", "logbook", "soap"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "zeep>=4.2.1",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+myflightbook-mcp = "myflightbook_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/myflightbook_mcp"]
