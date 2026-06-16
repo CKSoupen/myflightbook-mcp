@@ -139,6 +139,26 @@ def delete_pending_flight(access_token: str, pending_id: str) -> None:
     MFBClient(access_token).delete_pending_flight(pending_id)
 
 
+@mcp.tool()
+def get_currency(access_token: str) -> list[dict]:
+    """
+    Retrieve pilot currency status (recency, ratings, medical, etc.).
+    Returns list of CurrencyStatusItem dicts with attribute, value, and status fields.
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).get_currency()
+
+
+@mcp.tool()
+def get_totals(access_token: str) -> list[dict]:
+    """
+    Retrieve all-time flight time totals (by category, class, aircraft type, etc.).
+    Returns list of TotalsItem dicts. The "Value" field is a float (hours or count).
+    access_token: caller's MFB OAuth2 bearer token.
+    """
+    return MFBClient(access_token).get_totals()
+
+
 def main():
     mcp.run()
 

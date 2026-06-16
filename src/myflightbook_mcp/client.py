@@ -324,3 +324,33 @@ class MFBClient:
     def delete_pending_flight(self, pending_id: str) -> None:
         """Remove a pending flight via DeletePendingFlight."""
         self._call("DeletePendingFlight", idpending=pending_id)
+
+    # ------------------------------------------------------------------
+    # Currency and totals
+    # ------------------------------------------------------------------
+
+    def get_currency(self) -> list:
+        """
+        Retrieve pilot currency status via GetCurrencyForUser.
+        Uses szAuthToken (not szAuthUserToken).
+        Returns list of CurrencyStatusItem dicts with attribute, value, status fields.
+        """
+        result = self._call("GetCurrencyForUser", token_param="szAuthToken")
+        try:
+            items = result if isinstance(result, list) else list(result or [])
+            return [self._json_safe(serialize_object(c)) for c in items]
+        except Exception as e:
+            raise RuntimeError(f"GetCurrencyForUser: failed to parse response: {e}") from e
+
+    def get_totals(self) -> list:
+        """
+        Retrieve flight time totals via TotalsForUser.
+        Uses szAuthToken (not szAuthUserToken). dtMin=None returns all-time totals.
+        Returns list of TotalsItem dicts. The "Value" field is a float (hours or count).
+        """
+        result = self._call("TotalsForUser", token_param="szAuthToken", dtMin=None)
+        try:
+            items = result if isinstance(result, list) else list(result or [])
+            return [self._json_safe(serialize_object(t)) for t in items]
+        except Exception as e:
+            raise RuntimeError(f"TotalsForUser: failed to parse response: {e}") from e
