@@ -229,6 +229,7 @@ class MFBClient:
         """
         FqType = self._zeep.get_type("ns0:FlightQuery")
         fq = FqType(
+            DateRange="Custom",
             DateMin=datetime.strptime(start_date, "%Y-%m-%d"),
             DateMax=datetime.strptime(end_date, "%Y-%m-%d"),
         )
@@ -348,7 +349,7 @@ class MFBClient:
         Uses szAuthToken (not szAuthUserToken). dtMin=None returns all-time totals.
         Returns list of TotalsItem dicts. The "Value" field is a float (hours or count).
         """
-        result = self._call("TotalsForUser", token_param="szAuthToken", dtMin=None)
+        result = self._call("TotalsForUser", token_param="szAuthToken", dtMin=datetime(1900, 1, 1))
         try:
             items = result if isinstance(result, list) else list(result or [])
             return [self._json_safe(serialize_object(t)) for t in items]
