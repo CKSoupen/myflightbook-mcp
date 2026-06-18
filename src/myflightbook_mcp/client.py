@@ -228,10 +228,46 @@ class MFBClient:
         Returns list of flight summary dicts for the date range (YYYY-MM-DD).
         """
         FqType = self._zeep.get_type("ns0:FlightQuery")
+        # FlightQuery has many minOccurs=1 fields; set all required enum/bool fields
+        # to their "no restriction" defaults alongside the date filter.
         fq = FqType(
             DateRange="Custom",
             DateMin=datetime.strptime(start_date, "%Y-%m-%d"),
             DateMax=datetime.strptime(end_date, "%Y-%m-%d"),
+            Distance="AllFlights",
+            EngineType="AllEngines",
+            AircraftInstanceTypes="AllAircraft",
+            IsPublic=False,
+            HasNightLandings=False,
+            HasFullStopLandings=False,
+            HasLandings=False,
+            HasApproaches=False,
+            HasHolds=False,
+            HasXC=False,
+            HasSimIMCTime=False,
+            HasGroundSim=False,
+            HasIMC=False,
+            HasAnyInstrument=False,
+            HasNight=False,
+            HasDual=False,
+            HasCFI=False,
+            HasSIC=False,
+            HasPIC=False,
+            HasTotalTime=False,
+            IsSigned=False,
+            IsComplex=False,
+            HasFlaps=False,
+            IsHighPerformance=False,
+            IsConstantSpeedProp=False,
+            IsRetract=False,
+            IsTechnicallyAdvanced=False,
+            IsGlass=False,
+            IsTailwheel=False,
+            IsMultiEngineHeli=False,
+            IsTurbine=False,
+            HasTelemetry=False,
+            HasImages=False,
+            IsMotorglider=False,
         )
         result = self._call(
             "FlightsWithQueryAndOffset", fq=fq, offset=0, maxCount=max_count
