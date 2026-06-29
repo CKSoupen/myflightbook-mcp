@@ -17,6 +17,13 @@ class MFBClient:
         self._token = access_token
         self._zeep = ZeepClient(MFB_WSDL)
 
+    # Methods that require the 'readflight' OAuth scope.
+    # When this scope is missing, MFB returns "Invalid authentication token -
+    # no valid username found" instead of an auth error — so we intercept it
+    # and re-raise with a clear message.
+    _READFLIGHT_METHODS = frozenset({"FlightsWithQueryAndOffset", "PendingFlightsForUser"})
+    _SCOPE_ERROR_MARKER = "no valid username found"
+
     def _call(self, method: str, token_param: str = "szAuthUserToken", **kwargs):
         """
         Thin wrapper: inject the auth token into every SOAP call.
@@ -27,6 +34,13 @@ class MFBClient:
             fn = getattr(self._zeep.service, method)
             return fn(**{token_param: self._token}, **kwargs)
         except Exception as e:
+            msg = str(e)
+            if method in self._READFLIGHT_METHODS and self._SCOPE_ERROR_MARKER in msg:
+                raise RuntimeError(
+                    f"MFB SOAP error in {method}: token is missing the 'readflight' OAuth scope. "
+                    "Re-authorize with scopes: addflight readflight readaircraft currency totals. "
+                    "Run mfb_oauth_reauth.py to get a new token."
+                ) from e
             raise RuntimeError(f"MFB SOAP error in {method}: {e}") from e
 
     # ------------------------------------------------------------------
