@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "myflightbook-mcp"
 version = "0.1.0"
-description = "MCP server for the MyFlightbook SOAP API"
+description = "MCP server for the MyFlightbook REST OAuth API"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -19,8 +19,6 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.0.0",
-    "zeep>=4.2.1",
-    "requests>=2.31.0",
 ]
 
 [project.scripts]
