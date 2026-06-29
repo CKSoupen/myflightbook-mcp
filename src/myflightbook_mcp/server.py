@@ -70,6 +70,8 @@ def add_flight(flight: dict, access_token: str | None = None) -> int:
     flight dict keys:
       aircraft_id (int), date (str YYYY-MM-DD),
       total_time (float), sic (float), pic (float),
+      cross_country (float, optional), night (float, optional),
+      imc (float, optional), approaches (int, optional),
       route (str e.g. "FAJS-FZAA"), landings (int), full_stop_landings (int),
       night_landings (int, optional), comment (str, optional),
       flight_start (str ISO UTC, optional), flight_end (str ISO UTC, optional),
@@ -96,7 +98,8 @@ def get_flights(
 @mcp.tool()
 def check_flight(flight: dict, access_token: str | None = None) -> dict:
     """
-    Validate a flight entry before committing. Same flight dict shape as add_flight.
+    Validate a flight entry before committing. Same flight dict shape as add_flight
+    (including cross_country, night, imc, approaches).
     Returns {"valid": bool, "messages": list[str]}.
     Empty messages list means the flight passed validation.
     access_token: MFB OAuth2 bearer token. If omitted, reads MFB_ACCESS_TOKEN env var.
@@ -107,7 +110,8 @@ def check_flight(flight: dict, access_token: str | None = None) -> dict:
 @mcp.tool()
 def create_pending_flight(flight: dict, access_token: str | None = None) -> str:
     """
-    Schedule a pending (future) flight. Same flight dict shape as add_flight.
+    Schedule a pending (future) flight. Same flight dict shape as add_flight
+    (including cross_country, night, imc, approaches).
     Returns the MFB-assigned PendingID (string UUID).
     access_token: MFB OAuth2 bearer token. If omitted, reads MFB_ACCESS_TOKEN env var.
     """
@@ -131,7 +135,7 @@ def update_pending_flight(
     """
     Update an existing pending flight (e.g. add actuals before committing).
     pending_id: PendingID returned by create_pending_flight.
-    flight: same dict shape as add_flight.
+    flight: same dict shape as add_flight (including cross_country, night, imc, approaches).
     access_token: MFB OAuth2 bearer token. If omitted, reads MFB_ACCESS_TOKEN env var.
     """
     MFBClient(_resolve_token(access_token)).update_pending_flight(pending_id, flight)
